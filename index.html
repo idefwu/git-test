@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>飲料訂購系統</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Microsoft JhengHei", sans-serif;
+      background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+    h1 { color: #6b4423; text-align: center; margin-bottom: 24px; }
+    .section { margin-bottom: 24px; }
+    .section h2 {
+      font-size: 18px;
+      color: #6b4423;
+      border-left: 4px solid #c89b7b;
+      padding-left: 10px;
+      margin-bottom: 12px;
+    }
+    .menu {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .drink {
+      border: 2px solid #eee;
+      border-radius: 10px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .drink:hover { border-color: #c89b7b; transform: translateY(-2px); }
+    .drink.selected { border-color: #6b4423; background: #fdf6ef; }
+    .drink .name { font-weight: bold; color: #333; }
+    .drink .price { color: #c89b7b; margin-top: 4px; }
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .options button {
+      padding: 8px 14px;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .options button.active {
+      background: #6b4423;
+      color: #fff;
+      border-color: #6b4423;
+    }
+    .qty {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .qty button {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid #c89b7b;
+      background: #fff;
+      cursor: pointer;
+      font-size: 18px;
+      color: #6b4423;
+    }
+    .qty span { font-size: 18px; min-width: 30px; text-align: center; }
+    .summary {
+      background: #fdf6ef;
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    .summary p { margin: 4px 0; color: #555; }
+    .total {
+      font-size: 22px;
+      font-weight: bold;
+      color: #6b4423;
+      text-align: right;
+      margin-top: 8px;
+    }
+    .order-btn {
+      width: 100%;
+      padding: 14px;
+      background: #6b4423;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+    .order-btn:hover { background: #543419; }
+    .cart-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed #ddd;
+    }
+    .cart-item button {
+      background: #e74c3c;
+      color: #fff;
+      border: none;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>☕ 飲料訂購系統</h1>
+
+    <div class="section">
+      <h2>選擇飲料</h2>
+      <div class="menu" id="menu"></div>
+    </div>
+
+    <div class="section">
+      <h2>甜度</h2>
+      <div class="options" id="sugarOptions"></div>
+    </div>
+
+    <div class="section">
+      <h2>冰量</h2>
+      <div class="options" id="iceOptions"></div>
+    </div>
+
+    <div class="section">
+      <h2>數量</h2>
+      <div class="qty">
+        <button onclick="changeQty(-1)">−</button>
+        <span id="qty">1</span>
+        <button onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+
+    <button class="order-btn" onclick="addToCart()">加入訂單</button>
+
+    <div class="section" id="cartSection" style="display:none; margin-top:24px;">
+      <h2>購物車</h2>
+      <div class="summary">
+        <div class="cart-list" id="cartList"></div>
+        <div class="total">總計：$<span id="total">0</span></div>
+      </div>
+      <button class="order-btn" onclick="checkout()">送出訂單</button>
+    </div>
+  </div>
+
+  <script>
+    const drinks = [
+      { name: "珍珠奶茶", price: 60 },
+      { name: "紅茶拿鐵", price: 55 },
+      { name: "四季春茶", price: 35 },
+      { name: "百香雙響炮", price: 65 },
+      { name: "冬瓜檸檬", price: 50 },
+      { name: "鮮奶茶", price: 60 }
+    ];
+    const sugars = ["無糖", "微糖", "半糖", "少糖", "全糖"];
+    const ices = ["去冰", "微冰", "少冰", "正常冰", "熱飲"];
+
+    let selected = { drink: null, sugar: "半糖", ice: "少冰", qty: 1 };
+    let cart = [];
+
+    function renderMenu() {
+      const menu = document.getElementById("menu");
+      menu.innerHTML = drinks.map((d, i) => `
+        <div class="drink" data-i="${i}" onclick="selectDrink(${i})">
+          <div class="name">${d.name}</div>
+          <div class="price">$${d.price}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderOptions(id, list, key) {
+      document.getElementById(id).innerHTML = list.map(v => `
+        <button class="${selected[key] === v ? 'active' : ''}" onclick="selectOption('${key}','${v}')">${v}</button>
+      `).join("");
+    }
+
+    function selectDrink(i) {
+      selected.drink = i;
+      document.querySelectorAll(".drink").forEach(el => el.classList.remove("selected"));
+      document.querySelector(`.drink[data-i="${i}"]`).classList.add("selected");
+    }
+
+    function selectOption(key, value) {
+      selected[key] = value;
+      renderOptions("sugarOptions", sugars, "sugar");
+      renderOptions("iceOptions", ices, "ice");
+    }
+
+    function changeQty(delta) {
+      selected.qty = Math.max(1, selected.qty + delta);
+      document.getElementById("qty").textContent = selected.qty;
+    }
+
+    function addToCart() {
+      if (selected.drink === null) {
+        alert("請先選擇飲料！");
+        return;
+      }
+      const d = drinks[selected.drink];
+      cart.push({
+        name: d.name,
+        price: d.price,
+        sugar: selected.sugar,
+        ice: selected.ice,
+        qty: selected.qty,
+        subtotal: d.price * selected.qty
+      });
+      selected = { drink: null, sugar: "半糖", ice: "少冰", qty: 1 };
+      document.getElementById("qty").textContent = 1;
+      document.querySelectorAll(".drink").forEach(el => el.classList.remove("selected"));
+      renderOptions("sugarOptions", sugars, "sugar");
+      renderOptions("iceOptions", ices, "ice");
+      renderCart();
+    }
+
+    function removeFromCart(i) {
+      cart.splice(i, 1);
+      renderCart();
+    }
+
+    function renderCart() {
+      const cartSection = document.getElementById("cartSection");
+      if (cart.length === 0) {
+        cartSection.style.display = "none";
+        return;
+      }
+      cartSection.style.display = "block";
+      const list = document.getElementById("cartList");
+      list.innerHTML = cart.map((c, i) => `
+        <div class="cart-item">
+          <span>${c.name} / ${c.sugar} / ${c.ice} × ${c.qty}</span>
+          <span>$${c.subtotal} <button onclick="removeFromCart(${i})">刪除</button></span>
+        </div>
+      `).join("");
+      document.getElementById("total").textContent = cart.reduce((s, c) => s + c.subtotal, 0);
+    }
+
+    function checkout() {
+      const total = cart.reduce((s, c) => s + c.subtotal, 0);
+      const detail = cart.map(c => `${c.name}(${c.sugar}/${c.ice}) × ${c.qty}`).join("\n");
+      alert(`訂單已送出！\n\n${detail}\n\n總金額：$${total}`);
+      cart = [];
+      renderCart();
+    }
+
+    renderMenu();
+    renderOptions("sugarOptions", sugars, "sugar");
+    renderOptions("iceOptions", ices, "ice");
+  </script>
+</body>
+</html>
